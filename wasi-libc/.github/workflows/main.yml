@@ -1,0 +1,102 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  buildlibc:
+    name: Build libc
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+
+    - name: Install clang (Windows)
+      shell: bash
+      run: |
+          curl -fsSLO https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/LLVM-10.0.0-win64.exe
+          7z x LLVM-10.0.0-win64.exe -y -o"llvm"
+          echo "$(pwd)/llvm/bin" >> $GITHUB_PATH
+          echo "WASM_AR=$(pwd)/llvm/bin/llvm-ar.exe" >> $GITHUB_ENV
+      if: matrix.os == 'windows-latest'
+
+    - name: Install llvm-nm (Windows)
+      run: |
+        rustup update stable
+        rustup default stable
+        rustup component add llvm-tools-preview
+      if: matrix.os == 'windows-latest'
+
+    - name: Register llvm-nm in environment (Windows)
+      shell: bash
+      run: |
+        echo "WASM_NM=$(rustc --print sysroot|sed 's|C:|/c|'|sed 's|\\|/|g')/lib/rustlib/x86_64-pc-windows-msvc/bin/llvm-nm.exe" >> $GITHUB_ENV
+      if: matrix.os == 'windows-latest'
+
+    - name: Install clang (MacOS)
+      shell: bash
+      run: |
+        curl -sSfL https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/clang+llvm-10.0.0-x86_64-apple-darwin.tar.xz | tar xJf -
+        export CLANG_DIR=`pwd`/clang+llvm-10.0.0-x86_64-apple-darwin/bin
+        echo "$CLANG_DIR" >> $GITHUB_PATH
+        echo "WASM_CC=$CLANG_DIR/clang" >> $GITHUB_ENV
+      if: matrix.os == 'macos-latest'
+
+    - name: Install clang (Linux)
+      shell: bash
+      run: |
+        curl -sSfL https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz | tar xJf -
+        export CLANG_DIR=`pwd`/clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04/bin
+        echo "$CLANG_DIR" >> $GITHUB_PATH
+        echo "WASM_CC=$CLANG_DIR/clang" >> $GITHUB_ENV
+      if: matrix.os == 'ubuntu-latest'
+
+    - name: Build libc
+      shell: bash
+      run: make -j4
+
+    - uses: actions/upload-artifact@v1
+      with:
+        # Upload the sysroot folder. Give it a name according to the OS it was built for.
+        name: ${{ format( 'sysroot-{0}.tgz', matrix.os) }}
+        path: sysroot
+
+  headerstest:
+    name: wasi-headers test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Install Rust (rustup)
+      shell: bash
+      run: rustup update stable --no-self-update && rustup default stable
+      if: matrix.os != 'macos-latest'
+    - name: Install Rust (macos)
+      run: |
+        curl https://sh.rustup.rs | sh -s -- -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      if: matrix.os == 'macos-latest'
+    - run: cargo fetch
+      working-directory: tools/wasi-headers
+    - run: cargo build
+      working-directory: tools/wasi-headers
+    - run: cargo test
+      working-directory: tools/wasi-headers
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Install Rust
+      run: rustup update stable && rustup default stable && rustup component add rustfmt
+    - run: cargo fmt -- --check
+      working-directory: tools/wasi-headers
