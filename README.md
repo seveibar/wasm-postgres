@@ -38,7 +38,7 @@ Hello
 ```
 
 Porting is just configuring the postgres Makefile to have our `--target` and `--sysroot`, then
-fixing any compiler errors by introducing shims.
+fixing any compiler errors by introducing missing headers or libraries.
 
 ## Getting Started
 
