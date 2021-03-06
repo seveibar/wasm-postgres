@@ -1,0 +1,5 @@
+https://wiki.postgresql.org/wiki/So,_you_want_to_be_a_developer%3F
+
+http://www.neilconway.org/talks/hacking/
+
+http://www.neilconway.org/talks/hacking/ottawa/ottawa_slides.pdf
