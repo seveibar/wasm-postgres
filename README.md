@@ -48,7 +48,7 @@ fixing any compiler errors by introducing missing headers or libraries.
 
 > TODO why not just shove all this into a Dockerfile
 
-You'll need a bunch of things this is what I installed on Arch Linux via `yay`:
+You'll need a bunch of things, this is what I installed on Arch Linux via `yay`:
 
 ```
 wasi-sdk-bin
